@@ -216,14 +216,21 @@ func (umg *UserManager) GetUsersFromDB() (map[string]User, error) {
 //GetUserFromDB returns a single user from DB based on the username
 func (umg *UserManager) GetUserFromDB(username string) (User, error) {
 	user := User{}
-	tableName := os.Getenv("USER_MANAGER_USERS_TABLE")
+	var tableName string
 
-	q := "SELECT id, IFNULL(amember_user_id,0), firstname, lastname, username, email, enabled, IFNULL(native_access,0), IFNULL(mobile_access,0) FROM ? WHERE username=?"
+	//default table name to user
+	if val, ok := os.LookupEnv("USER_MANAGER_USERS_TABLE"); ok {
+		tableName = val
+	} else {
+		tableName = "user"
+	}
 
-	rows, err := umg.DB.Query(q, tableName, username)
+	q := fmt.Sprintf("SELECT id, IFNULL(amember_user_id,0), firstname, lastname, username, email, enabled, IFNULL(native_access,0), IFNULL(mobile_access,0) FROM %s WHERE username = '%s'", tableName, username)
+
+	rows, err := umg.DB.Query(q)
 
 	if err != nil {
-		umg.Gologger.Error("An error occured while trying to get users from DB! %v", err)
+		umg.Gologger.Error("An error occured while trying to get users from DB [table: %s] [username: %s]! %v", tableName, username, err)
 		return user, err
 	}
 
