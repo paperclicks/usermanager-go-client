@@ -213,6 +213,45 @@ func (umg *UserManager) GetUsersFromDB() (map[string]User, error) {
 	return users, nil
 }
 
+//GetUserFromDB returns a single user from DB based on the username
+func (umg *UserManager) GetUserFromDB(username string) (User, error) {
+	user := User{}
+	tableName := os.Getenv("USER_MANAGER_USERS_TABLE")
+
+	q := "SELECT id, IFNULL(amember_user_id,0), firstname, lastname, username, email, enabled, IFNULL(native_access,0), IFNULL(mobile_access,0) FROM ? WHERE username=?"
+
+	rows, err := umg.DB.Query(q, tableName, username)
+
+	if err != nil {
+		umg.Gologger.Error("An error occured while trying to get users from DB! %v", err)
+		return user, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+
+		if err := rows.Scan(&user.ID, &user.AmemberUserID, &user.Firstname, &user.Lastname, &user.Username, &user.Email, &user.Enabled, &user.NativeAccess, &user.MobileAccess); err != nil {
+			umg.Gologger.Error("%v", err)
+			return user, err
+		}
+
+	}
+
+	return user, nil
+}
+
+//GetUser returns single user from the username
+func (umg *UserManager) GetUser(username string) (User, error) {
+	useDB := os.Getenv("USER_MANAGER_USE_DB")
+
+	if useDB == "true" {
+		return umg.GetUserFromDB(username)
+	}
+
+	return User{}, fmt.Errorf("GetUserFromAPI is not implemented for single user")
+}
+
 //GetUsers returns a list of users; It can use the API or the DB based on the value of the env variable USER_MANAGER_USE_DB
 // if USER_MANAGER_USE_DB = true it will use the DB directly else will use the API
 func (umg *UserManager) GetUsers() (map[string]User, error) {
