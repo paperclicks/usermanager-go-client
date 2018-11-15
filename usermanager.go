@@ -275,9 +275,18 @@ func (umg *UserManager) GetUsers() (map[string]User, error) {
 //Status returns "OK" or "ERROR" based on the fact that the login process was successfull or not
 func (umg *UserManager) Status() (string, error) {
 
-	err := umg.login()
+	useDB := os.Getenv("USER_MANAGER_USE_DB")
 
-	if err != nil {
+	users := make(map[string]User)
+
+	var err error
+	if useDB == "true" {
+		users, err = umg.GetUsersFromDB()
+	} else {
+		users, err = umg.GetUsersFromAPI()
+	}
+
+	if len(users) == 0 || err != nil {
 		return "ERROR", err
 	}
 
