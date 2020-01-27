@@ -1,17 +1,18 @@
 package usermanager
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
+
+	"bitbucket.org/paperclicks/ms-go-database/database/model"
+	"bitbucket.org/paperclicks/ms-go-database/database/model/usermanager"
+
+	"bitbucket.org/paperclicks/ms-go-database/database/postgres"
 
 	"github.com/paperclicks/golog"
 	//needed for mysql
@@ -21,25 +22,11 @@ import (
 //UserManager is a concrete instance of usermanager package
 type UserManager struct {
 	Gologger *golog.Golog
-	DB       *sql.DB
+	DB       *postgres.Database
 	URL      string
 	Username string
 	Password string
 	Token    string
-}
-
-//User represents infos about a optimizer user
-type User struct {
-	ID            int      `json:"id"`
-	Firstname     string   `json:"firstname"`
-	Lastname      string   `json:"lastname"`
-	Email         string   `json:"email"`
-	Username      string   `json:"username"`
-	Roles         []string `json:"roles"`
-	NativeAccess  bool     `json:"nativeAccess"`
-	AmemberUserID int      `json:"amemberUserId"`
-	MobileAccess  bool     `json:"mobileAccess"`
-	Enabled       bool     `json:"enabled"`
 }
 
 //Token represents a login result
@@ -63,22 +50,9 @@ func init() {
 }
 
 //New instantiates a new UserManager instance
-func New(dsn string, url string, username string, password string, output io.Writer) *UserManager {
+func New(db *postgres.Database, APIUrl string, APIUser string, APIPass string, gl *golog.Golog) *UserManager {
 
-	gologger := golog.New(output)
-	gologger.ShowCallerInfo = true
-
-	token := ""
-
-	db, err := sql.Open("mysql", dsn)
-
-	if err != nil {
-		gologger.Error("Error connecting to UserManager DB: %v", err)
-
-		log.Fatalln("ERROR CONNECTING TO MYSQL: ", err)
-	}
-
-	return &UserManager{DB: db, URL: url, Username: username, Password: password, Token: token, Gologger: gologger}
+	return &UserManager{DB: db, URL: APIUrl, Username: APIPass, Password: APIPass, Gologger: gl}
 }
 
 func (umg *UserManager) login() error {
@@ -126,14 +100,13 @@ func (umg *UserManager) login() error {
 }
 
 //GetUsersFromAPI return a map of all traffic source types in DB, having the unique_name as key
-func (umg *UserManager) GetUsersFromAPI() (map[string]User, error) {
+func (umg *UserManager) GetUsersFromAPI() (map[string]*usermanager.User, error) {
 
-	users := make(map[string]User)
+	users := make(map[string]*usermanager.User)
 
 	//first try to get a token
 	err := umg.login()
 	if err != nil {
-		umg.Gologger.Error(" Getusers::Authentication Error - %v", err)
 		return users, err
 	}
 
@@ -144,7 +117,6 @@ func (umg *UserManager) GetUsersFromAPI() (map[string]User, error) {
 	req, err := http.NewRequest("GET", URL, nil)
 
 	if err != nil {
-		umg.Gologger.Error(" Getusers::NewRequest - %v", err)
 		return users, err
 	}
 
@@ -156,139 +128,86 @@ func (umg *UserManager) GetUsersFromAPI() (map[string]User, error) {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		umg.Gologger.Error(" GetUsers::Request Error - %v", err)
 		return users, err
 	}
 
 	defer resp.Body.Close()
 
-	var response []User
+	var response []usermanager.User
 
 	err = json.NewDecoder(resp.Body).Decode(&response)
 
 	if err != nil {
-		umg.Gologger.Error(" GetUsers:: Decode Error - %v", err)
 		return users, err
 	}
 
 	//create a map from the users array, and return the map. This is done because it is simpler to find a user using maps
 	for _, v := range response {
 
-		users[v.Username] = v
+		users[v.Username] = &v
 	}
 
 	return users, nil
 }
 
-//GetUsersFromDB retrieves all users from DB
-func (umg *UserManager) GetUsersFromDB() (map[string]User, error) {
+//GetUsersFromDB returns a map of users from DB, having username as key
+func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string]*usermanager.User, error) {
 
-	users := make(map[string]User)
-	tableName := os.Getenv("USER_MANAGER_USERS_TABLE")
+	users := make(map[string]*usermanager.User)
 
-	q := fmt.Sprintf("SELECT id, IFNULL(amember_user_id,0), firstname, lastname, username, email, enabled, IFNULL(native_access,0), IFNULL(mobile_access,0) FROM %s", tableName)
+	uc := usermanager.UserCollection{}
 
-	rows, err := umg.DB.Query(q)
+	umg.DB.Select(&usermanager.User{}, conditions, &uc, 10000)
 
-	if err != nil {
-		umg.Gologger.Error("An error occured while trying to get users from DB! %v", err)
-		return users, err
-	}
+	for _, u := range uc.Collection {
 
-	defer rows.Close()
-
-	for rows.Next() {
-
-		u := User{}
-
-		if err := rows.Scan(&u.ID, &u.AmemberUserID, &u.Firstname, &u.Lastname, &u.Username, &u.Email, &u.Enabled, &u.NativeAccess, &u.MobileAccess); err != nil {
-			umg.Gologger.Error("%v", err)
-			return users, err
-		}
-
-		users[u.Username] = u
-
+		users[u.Username] = &u
 	}
 
 	return users, nil
 }
 
 //GetUserFromDB returns a single user from DB based on the username
-func (umg *UserManager) GetUserFromDB(username string) (User, error) {
-	user := User{}
-	var tableName string
+func (umg *UserManager) GetUserFromDB(username string) (usermanager.User, error) {
+	user := usermanager.User{}
 
-	//default table name to user
-	if val, ok := os.LookupEnv("USER_MANAGER_USERS_TABLE"); ok {
-		tableName = val
-	} else {
-		tableName = "user"
-	}
-
-	q := fmt.Sprintf("SELECT id, IFNULL(amember_user_id,0), firstname, lastname, username, email, enabled, IFNULL(native_access,0), IFNULL(mobile_access,0) FROM %s WHERE username = '%s'", tableName, username)
-
-	rows, err := umg.DB.Query(q)
-
+	err := umg.DB.GetByField(&user, "username", username)
 	if err != nil {
-		umg.Gologger.Error("An error occured while trying to get users from DB [table: %s] [username: %s]! %v", tableName, username, err)
 		return user, err
 	}
 
-	defer rows.Close()
-
-	for rows.Next() {
-
-		if err := rows.Scan(&user.ID, &user.AmemberUserID, &user.Firstname, &user.Lastname, &user.Username, &user.Email, &user.Enabled, &user.NativeAccess, &user.MobileAccess); err != nil {
-			umg.Gologger.Error("%v", err)
-			return user, err
-		}
-
-	}
-
 	return user, nil
-}
 
-//GetUser returns single user from the username
-func (umg *UserManager) GetUser(username string) (User, error) {
-	useDB := os.Getenv("USER_MANAGER_USE_DB")
-
-	if useDB == "true" {
-		return umg.GetUserFromDB(username)
-	}
-
-	return User{}, fmt.Errorf("GetUserFromAPI is not implemented for single user")
 }
 
 //GetUsers returns a list of users; It can use the API or the DB based on the value of the env variable USER_MANAGER_USE_DB
 // if USER_MANAGER_USE_DB = true it will use the DB directly else will use the API
-func (umg *UserManager) GetUsers() (map[string]User, error) {
+func (umg *UserManager) GetUsers(useDB bool, conditions []model.Condition) (map[string]*usermanager.User, error) {
 
-	useDB := os.Getenv("USER_MANAGER_USE_DB")
-
-	if useDB == "true" {
-		return umg.GetUsersFromDB()
+	if useDB {
+		return umg.GetUsersFromDB(conditions)
 	}
 
 	return umg.GetUsersFromAPI()
 }
 
-//Status returns "OK" or "ERROR" based on the fact that the login process was successfull or not
-func (umg *UserManager) Status() (string, error) {
-
-	useDB := os.Getenv("USER_MANAGER_USE_DB")
-
-	users := make(map[string]User)
-
-	var err error
-	if useDB == "true" {
-		users, err = umg.GetUsersFromDB()
-	} else {
-		users, err = umg.GetUsersFromAPI()
+//UpsertUser updates an existing user or creates a new one
+func (umg *UserManager) UpsertUser(user usermanager.User) error {
+	err := umg.DB.Upsert(&user)
+	if err != nil {
+		return err
 	}
 
-	if len(users) == 0 || err != nil {
-		return "ERROR", err
+	return nil
+}
+
+//UpsertUserRole updates an existing user or creates a new one
+func (umg *UserManager) UpsertUserRole(user usermanager.User, roleID int32) error {
+	userRole := usermanager.UserRolePivot{UserID: user.ID, RoleID: roleID}
+	err := umg.DB.Upsert(&userRole)
+	if err != nil {
+		return err
 	}
 
-	return "OK", nil
+	return nil
 }
