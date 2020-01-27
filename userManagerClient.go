@@ -1,4 +1,4 @@
-package usermanager
+package usermanagerclient
 
 import (
 	"encoding/json"
