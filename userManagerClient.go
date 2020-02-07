@@ -100,9 +100,9 @@ func (umg *UserManager) login() error {
 }
 
 //GetUsersFromAPI return a map of all traffic source types in DB, having the unique_name as key
-func (umg *UserManager) GetUsersFromAPI() (map[string]*usermanager.User, error) {
+func (umg *UserManager) GetUsersFromAPI() (map[string]usermanager.User, error) {
 
-	users := make(map[string]*usermanager.User)
+	users := make(map[string]usermanager.User)
 
 	//first try to get a token
 	err := umg.login()
@@ -144,16 +144,16 @@ func (umg *UserManager) GetUsersFromAPI() (map[string]*usermanager.User, error) 
 	//create a map from the users array, and return the map. This is done because it is simpler to find a user using maps
 	for _, v := range response {
 
-		users[v.Username] = &v
+		users[v.Username] = v
 	}
 
 	return users, nil
 }
 
 //GetUsersFromDB returns a map of users from DB, having username as key
-func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string]*usermanager.User, error) {
+func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string]usermanager.User, error) {
 
-	users := make(map[string]*usermanager.User)
+	users := make(map[string]usermanager.User)
 
 	uc := usermanager.UserCollection{}
 
@@ -161,7 +161,7 @@ func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string
 
 	for _, u := range uc.Collection {
 
-		users[u.Username] = &u
+		users[u.Username] = u
 	}
 
 	return users, nil
@@ -182,7 +182,7 @@ func (umg *UserManager) GetUserFromDB(username string) (usermanager.User, error)
 
 //GetUsers returns a list of users; It can use the API or the DB based on the value of the env variable USER_MANAGER_USE_DB
 // if USER_MANAGER_USE_DB = true it will use the DB directly else will use the API
-func (umg *UserManager) GetUsers(useDB bool, conditions []model.Condition) (map[string]*usermanager.User, error) {
+func (umg *UserManager) GetUsers(useDB bool, conditions []model.Condition) (map[string]usermanager.User, error) {
 
 	if useDB {
 		return umg.GetUsersFromDB(conditions)
