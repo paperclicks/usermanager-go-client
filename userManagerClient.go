@@ -211,3 +211,24 @@ func (umg *UserManager) UpsertUserRole(user usermanager.User, roleID int32) erro
 
 	return nil
 }
+
+//GetActiveTrafficSources a map of traffic sources for active users
+func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.TrafficSource, error) {
+
+	query := `Select * from traffic_source where status=1 and user_id in (select id from "user" where native_access=true or mobile_access=true)`
+	trafficSources := make(map[int32]usermanager.TrafficSource)
+
+	tc := usermanager.TrafficSourceCollection{}
+
+	err := umg.DB.QueryModel(query, []interface{}{}, &usermanager.TrafficSource{}, &tc)
+	if err != nil {
+		return trafficSources, err
+	}
+
+	for _, ts := range tc.Collection {
+
+		trafficSources[ts.ID] = ts
+	}
+
+	return trafficSources, nil
+}
