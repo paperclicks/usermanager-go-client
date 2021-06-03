@@ -69,7 +69,6 @@ func (umg *UserManager) login() error {
 	req, err := http.NewRequest("POST", loginURL, strings.NewReader(form.Encode()))
 
 	if err != nil {
-		umg.Gologger.Error(" Login::NewRequest - %v", err)
 		return err
 	}
 
@@ -78,7 +77,6 @@ func (umg *UserManager) login() error {
 	resp, err := client.Do(req)
 
 	if err != nil {
-		umg.Gologger.Error(" Login::Request Error - %v", err)
 		return err
 	}
 
@@ -89,7 +87,6 @@ func (umg *UserManager) login() error {
 	err = json.NewDecoder(resp.Body).Decode(&token)
 
 	if err != nil {
-		umg.Gologger.Error(" doPutRequest:: Decode Error - %v", err)
 		return err
 	}
 
