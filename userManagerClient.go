@@ -229,3 +229,25 @@ func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.Traffic
 
 	return trafficSources, nil
 }
+
+
+//GetActiveTrafficSources a map of traffic sources for active users
+func (umg *UserManager) GetTrafficSources() (map[int32]usermanager.TrafficSource, error) {
+
+	query := `Select * from traffic_source`
+	trafficSources := make(map[int32]usermanager.TrafficSource)
+
+	tc := usermanager.TrafficSourceCollection{}
+
+	err := umg.DB.QueryModel(query, []interface{}{}, &usermanager.TrafficSource{}, &tc)
+	if err != nil {
+		return trafficSources, err
+	}
+
+	for _, ts := range tc.Collection {
+
+		trafficSources[ts.ID] = ts
+	}
+
+	return trafficSources, nil
+}
