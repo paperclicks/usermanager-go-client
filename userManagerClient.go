@@ -19,7 +19,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 )
 
-//UserManager is a concrete instance of usermanager package
+// UserManager is a concrete instance of usermanager package
 type UserManager struct {
 	Gologger *golog.Golog
 	DB       *postgres.Database
@@ -29,7 +29,7 @@ type UserManager struct {
 	Token    string
 }
 
-//Token represents a login result
+// Token represents a login result
 type Token struct {
 	Token string `json:"token"`
 }
@@ -49,7 +49,7 @@ func init() {
 	}
 }
 
-//New instantiates a new UserManager instance
+// New instantiates a new UserManager instance
 func New(db *postgres.Database, APIUrl string, APIUser string, APIPass string, gl *golog.Golog) *UserManager {
 
 	return &UserManager{DB: db, URL: APIUrl, Username: APIPass, Password: APIPass, Gologger: gl}
@@ -96,7 +96,7 @@ func (umg *UserManager) login() error {
 
 }
 
-//GetUsersFromAPI return a map of all traffic source types in DB, having the unique_name as key
+// GetUsersFromAPI return a map of all traffic source types in DB, having the unique_name as key
 func (umg *UserManager) GetUsersFromAPI() (map[string]usermanager.User, error) {
 
 	users := make(map[string]usermanager.User)
@@ -147,7 +147,7 @@ func (umg *UserManager) GetUsersFromAPI() (map[string]usermanager.User, error) {
 	return users, nil
 }
 
-//GetUsersFromDB returns a map of users from DB, having username as key
+// GetUsersFromDB returns a map of users from DB, having username as key
 func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string]usermanager.User, error) {
 
 	users := make(map[string]usermanager.User)
@@ -164,7 +164,42 @@ func (umg *UserManager) GetUsersFromDB(conditions []model.Condition) (map[string
 	return users, nil
 }
 
-//GetUserFromDB returns a single user from DB based on the username
+// GetViewUser returns a user from the users_view
+func (umg *UserManager) GetViewUser(email string) (ViewUser, error) {
+
+	user := ViewUser{}
+	query := fmt.Sprintf(`select id,
+firstname,
+lastname,
+username,
+email,
+created_at,
+native_subscription_plan,
+native_access,
+mobile_access,
+notes,
+vertical,
+sub_users,
+connected_traffic_sources,
+currencies,
+connected_trackers
+from users_view where email='%s'`, email)
+
+	rows, err := umg.DB.Query(query)
+	if err != nil {
+		return user, err
+	}
+
+	for rows.Next() {
+		rows.Scan(&user.Id, &user.FistName, &user.LastName, &user.Username, &user.Email, &user.CreatedAt, &user.SubscriptionPlan,
+			&user.NativeAccess, &user.MobileAccess, &user.Notes, &user.Vertical, &user.Subusers, &user.ConnectedTrafficSources,
+			&user.Currencies, &user.ConnectedTrackers)
+	}
+
+	return user, nil
+}
+
+// GetUserFromDB returns a single user from DB based on the username
 func (umg *UserManager) GetUserFromDB(username string) (usermanager.User, error) {
 	user := usermanager.User{}
 
@@ -177,7 +212,7 @@ func (umg *UserManager) GetUserFromDB(username string) (usermanager.User, error)
 
 }
 
-//GetUsers returns a list of users; It can use the API or the DB based on the value of the env variable USER_MANAGER_USE_DB
+// GetUsers returns a list of users; It can use the API or the DB based on the value of the env variable USER_MANAGER_USE_DB
 // if USER_MANAGER_USE_DB = true it will use the DB directly else will use the API
 func (umg *UserManager) GetUsers(useDB bool, conditions []model.Condition) (map[string]usermanager.User, error) {
 
@@ -188,7 +223,7 @@ func (umg *UserManager) GetUsers(useDB bool, conditions []model.Condition) (map[
 	return umg.GetUsersFromAPI()
 }
 
-//UpsertUser updates an existing user or creates a new one
+// UpsertUser updates an existing user or creates a new one
 func (umg *UserManager) UpsertUser(user usermanager.User) error {
 	err := umg.DB.Upsert(&user)
 	if err != nil {
@@ -198,7 +233,7 @@ func (umg *UserManager) UpsertUser(user usermanager.User) error {
 	return nil
 }
 
-//UpsertUserRole updates an existing user or creates a new one
+// UpsertUserRole updates an existing user or creates a new one
 func (umg *UserManager) UpsertUserRole(user usermanager.User, roleID int32) error {
 	userRole := usermanager.UserRolePivot{UserID: user.ID, RoleID: roleID}
 	err := umg.DB.Upsert(&userRole)
@@ -209,7 +244,7 @@ func (umg *UserManager) UpsertUserRole(user usermanager.User, roleID int32) erro
 	return nil
 }
 
-//GetActiveTrafficSources a map of traffic sources for active users
+// GetActiveTrafficSources a map of traffic sources for active users
 func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.TrafficSource, error) {
 
 	query := `Select * from traffic_source where status=1 and user_id in (select id from "user" where native_access=true or mobile_access=true)`
@@ -230,8 +265,7 @@ func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.Traffic
 	return trafficSources, nil
 }
 
-
-//GetActiveTrafficSources a map of traffic sources for active users
+// GetActiveTrafficSources a map of traffic sources for active users
 func (umg *UserManager) GetTrafficSources() (map[int32]usermanager.TrafficSource, error) {
 
 	query := `Select * from traffic_source`
