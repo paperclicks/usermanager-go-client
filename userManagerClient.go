@@ -199,6 +199,50 @@ from users_view where email='%s'`, email)
 	return user, nil
 }
 
+// GetViewUsers returns a map of users from the users_view
+func (umg *UserManager) GetViewUsers() (map[int32]ViewUser, error) {
+
+	users := make(map[int32]ViewUser)
+
+	query := fmt.Sprintf(`select id,
+		firstname,
+		lastname,
+		username,
+		email,
+		created_at,
+		native_subscription_plan,
+		native_access,
+		mobile_access,
+		notes,
+		vertical,
+		sub_users,
+		connected_traffic_sources,
+		currencies,
+		connected_trackers
+		from users_view`)
+
+	rows, err := umg.DB.Query(query)
+	if err != nil {
+		return users, err
+	}
+
+	for rows.Next() {
+		user := ViewUser{}
+
+		err := rows.Scan(&user.Id, &user.FistName, &user.LastName, &user.Username, &user.Email, &user.CreatedAt, &user.SubscriptionPlan,
+			&user.NativeAccess, &user.MobileAccess, &user.Notes, &user.Vertical, &user.Subusers, &user.ConnectedTrafficSources,
+			&user.Currencies, &user.ConnectedTrackers)
+
+		if err != nil {
+			return users, err
+		}
+
+		users[user.Id] = user
+	}
+
+	return users, nil
+}
+
 // GetUserFromDB returns a single user from DB based on the username
 func (umg *UserManager) GetUserFromDB(username string) (usermanager.User, error) {
 	user := usermanager.User{}
