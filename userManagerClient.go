@@ -200,9 +200,9 @@ from users_view where email='%s'`, email)
 }
 
 // GetViewUsers returns a map of users from the users_view
-func (umg *UserManager) GetViewUsers() (map[int32]ViewUser, error) {
+func (umg *UserManager) GetViewUsers() (map[string]ViewUser, error) {
 
-	users := make(map[int32]ViewUser)
+	users := make(map[string]ViewUser)
 
 	query := fmt.Sprintf(`select id,
 		firstname,
@@ -237,7 +237,7 @@ func (umg *UserManager) GetViewUsers() (map[int32]ViewUser, error) {
 			return users, err
 		}
 
-		users[user.Id] = user
+		users[user.Username] = user
 	}
 
 	return users, nil
