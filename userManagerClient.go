@@ -291,7 +291,16 @@ func (umg *UserManager) UpsertUserRole(user usermanager.User, roleID int32) erro
 // GetActiveTrafficSources a map of traffic sources for active users
 func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.TrafficSource, error) {
 
-	query := `Select * from traffic_source where status=1 and user_id in (select id from "user" where native_access=true or mobile_access=true)`
+	query := `Select id,
+	name,
+	status,
+	credentials,
+	created_at,
+	updated_at,
+	settings,
+	encrypted_credentials,
+	user_id,
+	traffic_source_type_id from traffic_source where status=1 and user_id in (select id from "user" where native_access=true or mobile_access=true)`
 	trafficSources := make(map[int32]usermanager.TrafficSource)
 
 	tc := usermanager.TrafficSourceCollection{}
@@ -312,7 +321,16 @@ func (umg *UserManager) GetActiveTrafficSources() (map[int32]usermanager.Traffic
 // GetActiveTrafficSources a map of traffic sources for active users
 func (umg *UserManager) GetTrafficSources() (map[int32]usermanager.TrafficSource, error) {
 
-	query := `Select * from traffic_source`
+	query := `Select id,
+	name,
+	status,
+	credentials,
+	created_at,
+	updated_at,
+	settings,
+	encrypted_credentials,
+	user_id,
+	traffic_source_type_id from traffic_source`
 	trafficSources := make(map[int32]usermanager.TrafficSource)
 
 	tc := usermanager.TrafficSourceCollection{}
