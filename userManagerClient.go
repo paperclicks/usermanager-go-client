@@ -182,7 +182,8 @@ vertical,
 sub_users,
 connected_traffic_sources,
 currencies,
-connected_trackers
+connected_trackers,
+last_login
 from users_view where email='%s'`, email)
 
 	rows, err := umg.DB.Query(query)
@@ -193,7 +194,7 @@ from users_view where email='%s'`, email)
 	for rows.Next() {
 		rows.Scan(&user.Id, &user.FistName, &user.LastName, &user.Username, &user.Email, &user.CreatedAt, &user.SubscriptionPlan,
 			&user.NativeAccess, &user.MobileAccess, &user.Notes, &user.Vertical, &user.Subusers, &user.ConnectedTrafficSources,
-			&user.Currencies, &user.ConnectedTrackers)
+			&user.Currencies, &user.ConnectedTrackers, &user.LastLogin)
 	}
 
 	return user, nil
@@ -218,7 +219,8 @@ func (umg *UserManager) GetViewUsers() (map[string]ViewUser, error) {
 		sub_users,
 		connected_traffic_sources,
 		currencies,
-		connected_trackers
+		connected_trackers,
+		last_login
 		from users_view`)
 
 	rows, err := umg.DB.Query(query)
@@ -231,7 +233,7 @@ func (umg *UserManager) GetViewUsers() (map[string]ViewUser, error) {
 
 		err := rows.Scan(&user.Id, &user.FistName, &user.LastName, &user.Username, &user.Email, &user.CreatedAt, &user.SubscriptionPlan,
 			&user.NativeAccess, &user.MobileAccess, &user.Notes, &user.Vertical, &user.Subusers, &user.ConnectedTrafficSources,
-			&user.Currencies, &user.ConnectedTrackers)
+			&user.Currencies, &user.ConnectedTrackers, &user.LastLogin)
 
 		if err != nil {
 			return users, err

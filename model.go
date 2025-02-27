@@ -18,4 +18,5 @@ type ViewUser struct {
 	ConnectedTrafficSources string    `json:"connected_traffic_sources"`
 	Currencies              string    `json:"currencies"`
 	ConnectedTrackers       string    `json:"connected_trackers"`
+	LastLogin               time.Time `json:"last_login"`
 }
