@@ -205,7 +205,7 @@ func (umg *UserManager) GetViewUsers() (map[string]ViewUser, error) {
 
 	users := make(map[string]ViewUser)
 
-	query := fmt.Sprintf(`select id,
+	query := `select id,
 		firstname,
 		lastname,
 		username,
@@ -220,8 +220,8 @@ func (umg *UserManager) GetViewUsers() (map[string]ViewUser, error) {
 		connected_traffic_sources,
 		currencies,
 		connected_trackers,
-		last_login
-		from users_view`)
+		COALESCE(last_login, '1970-01-01 00:00:00')	as last_login
+			from users_view`
 
 	rows, err := umg.DB.Query(query)
 	if err != nil {
